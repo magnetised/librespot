@@ -27,6 +27,9 @@ impl Sink for StdoutSink {
     }
 
     fn write(&mut self, data: &[i16]) -> io::Result<()> {
+        let start = std::time::Instant::now();
+        let sample_length_us = ((data.len() as f32 * 14.0 / 2.0).round()) as u64;
+
         let data: &[u8] = unsafe {
             slice::from_raw_parts(
                 data.as_ptr() as *const u8,
@@ -36,6 +39,16 @@ impl Sink for StdoutSink {
 
         self.0.write_all(data)?;
         self.0.flush()?;
+
+        let elapsed = start.elapsed().as_micros() as u64;
+
+        if elapsed < sample_length_us {
+            let wait_us = sample_length_us - elapsed;
+            let d_us = std::time::Duration::from_micros(20);
+            while (start.elapsed().as_micros() as u64) < wait_us {
+                std::thread::sleep(d_us);
+            }
+        }
 
         Ok(())
     }
